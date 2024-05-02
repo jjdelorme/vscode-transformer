@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { Transformer } from './transformer';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -55,17 +56,41 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 					}
 				case 'generateText':
 					{
-						this.generateText(data.value);
+						this._generateText(data.value).then(result => {
+							this._showMarkdown(result);
+						});
 						break;
 					}
 			}
 		});
 	}
 
-	public generateText(prompt: string) {
+	private async _generateText(prompt: string): Promise<string> {
 		// log the prompt to console
-		
-		
+		const options = {
+			projectId: "cloud-blockers-ai",
+			locationId: "us-central1",
+			modelId: "gemini-1.5-pro-preview-0409"
+		}
+
+		// for now just assume we're using the open tab
+		const request = {
+			sourceUrl: '',
+			prompt: prompt
+		}
+
+		const transformer = new Transformer(options);
+		return transformer.generate(request);
+	}
+
+	private async _showMarkdown(response: string): Promise<void> {
+		// Write to a temp file for now, in the future keep a history of responses, 
+		// but probably needs the prompt injected back in too.
+		const uri = vscode.Uri.file(vscode.workspace.workspaceFolders![0].uri.fsPath + "/temp/temp.md");
+		vscode.workspace.fs.writeFile(uri, Buffer.from(response));
+
+		// const uri = vscode.URI.file("/path/to/file.md");
+		await vscode.commands.executeCommand("markdown.showPreview", uri);
 	}
 
 	public addColor() {

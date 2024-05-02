@@ -12,7 +12,10 @@
 			"runtimeExecutable": "${execPath}",
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
 			"outFiles": ["${workspaceFolder}/out/**/*.js"],
-			"preLaunchTask": "npm: watch"
+			"preLaunchTask": "npm: watch",
+			"env": {
+				"GOOGLE_APPLICATION_CREDENTIALS": "/home/jasondel/dev/cloud-blockers-ai.json"
+			  }			
 		}
 	]
 }
