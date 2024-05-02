@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 class PromptViewProvider implements vscode.WebviewViewProvider {
 
-	public static readonly viewType = 'codeTransformer.PromptView';
+	public static readonly viewType = 'codeTransformer.promptView';
 
 	private _view?: vscode.WebviewView;
 

@@ -1,8 +1,13 @@
 {
-	"name": "code-transformer",
+	"name": "vscode-transformer",
 	"description": "Code Transformer - Transform files and repositories using Gemini 1.5 Pro",
 	"version": "0.0.1",
-	"publisher": "jasondel",
+	"publisher": "jjdelorme",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Microsoft/vscode-extension-samples"
+	},	
 	"private": true,
 	"engines": {
 		"vscode": "^1.74.0"
@@ -22,19 +27,19 @@
 				{
 					"type": "webview",
 					"id": "codeTransformer.promptView",
-					"name": "Calico Colors"
+					"name": "Code Transformer"
 				}
 			]
 		},
 		"commands": [
 			{
 				"command": "codeTransformer.addColor",
-				"category": "Calico Colors",
+				"category": "Code Transformer",
 				"title": "Add Color"
 			},
 			{
 				"command": "codeTransformer.clearColors",
-				"category": "Calico Colors",
+				"category": "Code Transformer",
 				"title": "Clear Colors",
 				"icon": "$(clear-all)"
 			}
