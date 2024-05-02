@@ -10,16 +10,21 @@
     /** @type {Array<{ value: string }>} */
     let colors = oldState.colors;
 
-    updateColorList(colors);
+    // updateColorList(colors);
 
     document.querySelector('.add-color-button').addEventListener('click', () => {
-        addColor();
+        onGenerateClicked();
     });
 
     // Handle messages sent from the extension to the webview
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
         switch (message.type) {
+            case 'generateText':
+                {
+                    // Doesn't do anything yet.
+                    break;
+                }
             case 'addColor':
                 {
                     addColor();
@@ -74,6 +79,17 @@
 
         // Update the saved state
         vscode.setState({ colors: colors });
+    }
+
+    /** 
+     * Reads the prompt and sends it to the extension host.
+     */
+    function onGenerateClicked() {
+        const prompt = document.querySelector('.prompt-input').value;
+        if (!prompt) {
+            return;
+        }
+        vscode.postMessage({ type: 'generateText', value: prompt });
     }
 
     /** 

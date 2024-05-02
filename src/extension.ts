@@ -53,8 +53,19 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 						vscode.window.activeTextEditor?.insertSnippet(new vscode.SnippetString(`#${data.value}`));
 						break;
 					}
+				case 'generateText':
+					{
+						this.generateText(data.value);
+						break;
+					}
 			}
 		});
+	}
+
+	public generateText(prompt: string) {
+		// log the prompt to console
+		
+		
 	}
 
 	public addColor() {
@@ -103,11 +114,18 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 				<title>Cat Colors</title>
 			</head>
 			<body>
-				<div><textarea></textarea></div>
+				<h3>Scope</h3>
+				<input type="radio" id="fileRadio" name="sourceType" value="File" checked>
+				<label for="fileRadio">Active Tab</label>
+				<input type="radio" id="repoRadio" name="sourceType" value="Repository">
+				<label for="repoRadio">Repository</label>
+		  
+				<h3>Enter your prompt</h3>
+				<div><textarea class="prompt-input"></textarea></div>
 				<ul class="color-list">
 				</ul>
 
-				<button class="add-color-button">Add Color</button>
+				<button class="add-color-button">Generate</button>
 
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>

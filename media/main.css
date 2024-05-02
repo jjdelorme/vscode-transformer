@@ -39,7 +39,7 @@ body {
 	margin: 0 auto;
 }
 
-textarea {
+.prompt-input {
 	width: 90vw;
 	height: 200px;
 	resize: vertical;
