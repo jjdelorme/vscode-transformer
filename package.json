@@ -33,21 +33,16 @@
 		},
 		"commands": [
 			{
-				"command": "codeTransformer.addColor",
+				"command": "codeTransformer.clearPrompt",
 				"category": "Code Transformer",
-				"title": "Add Color"
-			},
-			{
-				"command": "codeTransformer.clearColors",
-				"category": "Code Transformer",
-				"title": "Clear Colors",
+				"title": "Clear Prompt",
 				"icon": "$(clear-all)"
 			}
 		],
 		"menus": {
 			"view/title": [
 				{
-					"command": "codeTransformer.clearColors",
+					"command": "codeTransformer.clearPrompt",
 					"group": "navigation",
 					"when": "view == codeTransformer.promptView"
 				}

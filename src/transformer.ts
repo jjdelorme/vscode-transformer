@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { PredictionServiceClient, protos } from "@google-cloud/aiplatform";
 
 const SYSTEM_PROMPT = {
@@ -53,7 +54,7 @@ export class Transformer {
       let fileContents = '';
 
       if (request.sourceType === SourceType.OpenTab) {
-        fileContents = `<code>\n${this.getOpenTab()}\n</code>`;
+        fileContents = this.getOpenTab();
       } else {
         fileContents = await this.getFileContents('**/*.cs*');
       }
@@ -64,6 +65,7 @@ export class Transformer {
       "- Establish a deep understanding of what the code does and any external dependencies not provided in the context\n" +
       "- Use all of the files to understand this specific environment and its dependencies\n" +
       "- When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed\n" +
+      "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax "
       "</instructions>\n";
 
       const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
@@ -105,23 +107,38 @@ export class Transformer {
     };
 
     const [response] = await this.predictionServiceClient.generateContent(request, callOptions);
+
+    vscode.window.showInformationMessage(`Used ${response.usageMetadata?.totalTokenCount} tokens`);
+
+    if (response.candidates![0].finishReason != 'STOP')
+      vscode.window.showErrorMessage("Finished with reason: " + response.candidates![0].finishReason);
+
     const text = response.candidates![0].content?.parts![0].text ?? '';
 
     return text;
   }
 
   private getOpenTab(): string {
-    return vscode.window.activeTextEditor?.document.getText() ?? '';
+    return this.formatFileContents(vscode.window.activeTextEditor?.document);
   }
 
   private async getFileContents(globPattern: string): Promise<string> {
     const files = await vscode.workspace.findFiles(globPattern);
-    var text = "";
+    var text = '<files>\n';
     for (const uri of files) {
       const document = await vscode.workspace.openTextDocument(uri);
-      text += `<filename>${document.fileName}</filename>\n<code>${document.getText()}</code>\n`;
+      text += this.formatFileContents(document);
     }
 
-    return text;
+    return text + '/n</files>';
+  }
+
+  private formatFileContents(document: vscode.TextDocument | undefined): string {
+    if (!document)
+      throw new Error("Document is undefined");
+    const fileName = path.relative(vscode.workspace.workspaceFolders![0].uri.path, document.uri.path);
+    const code = document.getText();
+    
+    return `<code filename='../${fileName}'>${code}</code>`;
   }
 }

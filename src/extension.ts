@@ -10,13 +10,8 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider(PromptViewProvider.viewType, provider));
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('codeTransformer.addColor', () => {
-			provider.addColor();
-		}));
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand('codeTransformer.clearColors', () => {
-			provider.clearColors();
+		vscode.commands.registerCommand('codeTransformer.clearPrompt', () => {
+			provider.clearPrompt();
 		}));
 }
 
@@ -29,6 +24,12 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
 	) { }
+
+	public clearPrompt(): void {
+		if (this._view) {
+			this._view.webview.postMessage({ type: 'clearPrompt' });
+		}
+	}
 
 	public resolveWebviewView(
 		webviewView: vscode.WebviewView,
@@ -50,14 +51,16 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 
 		webviewView.webview.onDidReceiveMessage(data => {
 			switch (data.type) {
-				case 'colorSelected':
-					{
-						vscode.window.activeTextEditor?.insertSnippet(new vscode.SnippetString(`#${data.value}`));
-						break;
-					}
 				case 'generateText':
 					{
-						this._generateText(data.value).then(result => {
+						const request: TransformRequest = {
+							// Force strongly typed reponse
+							sourceType: data.value.sourceType === 'Repository' ? 
+								SourceType.Repository : SourceType.OpenTab,
+							prompt: data.value.prompt
+						};
+						
+						this._generateText(request).then(result => {
 							this._showMarkdown(result);
 						});
 						break;
@@ -71,7 +74,6 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		const options = {
 			projectId: 'cloud-blockers-ai',
 			locationId: 'us-central1',
-			// modelId: 'gemini-1.5-pro-latest'
 			modelId: "gemini-1.5-pro-preview-0409"
 		}
 
@@ -94,19 +96,6 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		const now = new Date();
   		const timestamp = now.toISOString().replace(/[-:.]/g, ''); 
 		return `${path}/temp/${timestamp}.md`;
-	}
-
-	public addColor() {
-		if (this._view) {
-			this._view.show?.(true); // `show` is not implemented in 1.49 but is for 1.50 insiders
-			this._view.webview.postMessage({ type: 'addColor' });
-		}
-	}
-
-	public clearColors() {
-		if (this._view) {
-			this._view.webview.postMessage({ type: 'clearColors' });
-		}
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview) {
@@ -150,8 +139,6 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		  
 				<h3>Enter your prompt</h3>
 				<div><textarea class="prompt-input"></textarea></div>
-				<ul class="color-list">
-				</ul>
 
 				<button class="add-color-button">Generate</button>
 
