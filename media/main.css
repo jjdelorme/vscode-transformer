@@ -44,3 +44,13 @@ body {
 	height: 200px;
 	resize: vertical;
 }
+
+.source-radio {
+	display: inline-block;
+	margin-right: 5px;
+}
+  
+.source-radio + label {
+	display: inline-block;
+	vertical-align: middle;
+}

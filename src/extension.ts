@@ -128,14 +128,13 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 				<link href="${styleVSCodeUri}" rel="stylesheet">
 				<link href="${styleMainUri}" rel="stylesheet">
 
-				<title>Cat Colors</title>
 			</head>
 			<body>
 				<h3>Scope</h3>
-				<input type="radio" id="fileRadio" name="sourceType" class="source-radio" value="OpenTab" checked>
-				<label for="fileRadio">Active Tab</label>
+				<input type="radio" id="fileRadio" text="Open Tab" name="sourceType" class="source-radio" value="OpenTab" checked>
 				<input type="radio" id="repoRadio" name="sourceType" class="source-radio" value="Repository">
-				<label for="repoRadio">Repository</label>
+					Repository
+				</input>
 		  
 				<h3>Enter your prompt</h3>
 				<div><textarea class="prompt-input"></textarea></div>
