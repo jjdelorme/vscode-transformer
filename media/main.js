@@ -89,7 +89,9 @@
         if (!prompt) {
             return;
         }
-        vscode.postMessage({ type: 'generateText', value: prompt });
+        const sourceType = document.querySelector('.source-radio:checked').value ?? 'OpenTab';
+
+        vscode.postMessage({ type: 'generateText', value: { prompt: prompt, sourceType: sourceType } });
     }
 
     /** 

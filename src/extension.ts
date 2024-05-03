@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { Transformer } from './transformer';
+import { Transformer, SourceType, TransformRequest } from './transformer';
+import * as crypto from 'crypto';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -65,32 +66,34 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
-	private async _generateText(prompt: string): Promise<string> {
+	private async _generateText(value: TransformRequest): Promise<string> {
 		// log the prompt to console
 		const options = {
-			projectId: "cloud-blockers-ai",
-			locationId: "us-central1",
+			projectId: 'cloud-blockers-ai',
+			locationId: 'us-central1',
+			// modelId: 'gemini-1.5-pro-latest'
 			modelId: "gemini-1.5-pro-preview-0409"
 		}
 
-		// for now just assume we're using the open tab
-		const request = {
-			sourceUrl: '',
-			prompt: prompt
-		}
-
 		const transformer = new Transformer(options);
-		return transformer.generate(request);
+		return transformer.generate(value);
 	}
 
 	private async _showMarkdown(response: string): Promise<void> {
 		// Write to a temp file for now, in the future keep a history of responses, 
 		// but probably needs the prompt injected back in too.
-		const uri = vscode.Uri.file(vscode.workspace.workspaceFolders![0].uri.fsPath + "/temp/temp.md");
+		const filename = this._generateFilename(vscode.workspace.workspaceFolders![0].uri.fsPath);
+		const uri = vscode.Uri.file(filename);
 		vscode.workspace.fs.writeFile(uri, Buffer.from(response));
 
 		// const uri = vscode.URI.file("/path/to/file.md");
 		await vscode.commands.executeCommand("markdown.showPreview", uri);
+	}
+
+	private _generateFilename(path: string): string {
+		const now = new Date();
+  		const timestamp = now.toISOString().replace(/[-:.]/g, ''); 
+		return `${path}/temp/${timestamp}.md`;
 	}
 
 	public addColor() {
@@ -140,9 +143,9 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 			</head>
 			<body>
 				<h3>Scope</h3>
-				<input type="radio" id="fileRadio" name="sourceType" value="File" checked>
+				<input type="radio" id="fileRadio" name="sourceType" class="source-radio" value="OpenTab" checked>
 				<label for="fileRadio">Active Tab</label>
-				<input type="radio" id="repoRadio" name="sourceType" value="Repository">
+				<input type="radio" id="repoRadio" name="sourceType" class="source-radio" value="Repository">
 				<label for="repoRadio">Repository</label>
 		  
 				<h3>Enter your prompt</h3>
@@ -166,3 +169,5 @@ function getNonce() {
 	}
 	return text;
 }
+
+  

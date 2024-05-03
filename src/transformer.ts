@@ -13,9 +13,14 @@ interface TransformerOptions {
   modelId: string;
 }
 
+export enum SourceType {
+	OpenTab,
+	Repository,
+}
+
 // Define an interface for the TransformRequest
-interface TransformRequest {
-  sourceUrl: string;
+export interface TransformRequest {
+  sourceType: SourceType;
   prompt: string;
 }
 
@@ -36,6 +41,7 @@ export class Transformer {
 
     const clientOptions = {
       apiEndpoint: `${this.options.locationId}-aiplatform.googleapis.com`,
+      
     };
 
     this.predictionServiceClient = new PredictionServiceClient(clientOptions);
@@ -46,21 +52,29 @@ export class Transformer {
     try {
       let fileContents = '';
 
-      if (request.sourceUrl === '') {
+      if (request.sourceType === SourceType.OpenTab) {
         fileContents = `<code>\n${this.getOpenTab()}\n</code>`;
       } else {
-        fileContents = await this.getFileContents(request.sourceUrl);
+        fileContents = await this.getFileContents('**/*.cs*');
       }
 
-      const enrichedPrompt = `${request.prompt}\n\n<context>\n${fileContents}\n</context>`;
+      const instructions = "<instructions>\n" +
+      "- Thoroughly read the code provided in each file in the context\n" +
+      "- Understand the dependencies between each file, developing a dependency tree in your mind\n" +
+      "- Establish a deep understanding of what the code does and any external dependencies not provided in the context\n" +
+      "- Use all of the files to understand this specific environment and its dependencies\n" +
+      "- When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed\n" +
+      "</instructions>\n";
+
+      const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
 
       const result = await this.generateText(enrichedPrompt);
 
       return result;
     }
     catch (error) {
-      console.error(error);
-      throw error;
+	    vscode.window.showErrorMessage("Error: " + error);
+      return '';
     }
   }
 
@@ -85,13 +99,12 @@ export class Transformer {
       model: this.model,
     };
 
-    // const clientOptions = {
-    //   apiEndpoint: `${this.options.locationId}-aiplatform.googleapis.com`,
-    // };
-    // const {PredictionServiceClient, protos} = await import('@google-cloud/aiplatform');
-    // const predictionServiceClient = new PredictionServiceClient(clientOptions);
+    const callOptions = {
+      // Vertex tends to take at least 30 seconds on repo level requests
+      timeout: 60000,
+    };
 
-    const [response] = await this.predictionServiceClient.generateContent(request);
+    const [response] = await this.predictionServiceClient.generateContent(request, callOptions);
     const text = response.candidates![0].content?.parts![0].text ?? '';
 
     return text;
