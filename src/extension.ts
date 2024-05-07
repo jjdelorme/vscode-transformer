@@ -59,17 +59,43 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 								SourceType.Repository : SourceType.OpenTab,
 							prompt: data.value.prompt
 						};
-						
-						this._generateText(request).then(result => {
-							this._showMarkdown(result);
-						});
+
+						vscode.window.withProgress({
+							location: vscode.ProgressLocation.Notification,
+							title: "Executing your prompt...",
+							cancellable: true
+						}, (progress, token) => {
+							token.onCancellationRequested(() => {
+								console.log("User canceled the generation process");
+
+							});
+				
+							// Indeterminate progress indicator
+							progress.report({ increment: -1 });
+							
+							const p = new Promise<void>(resolve => {
+								// setTimeout(() => { 
+								// 	resolve(); 
+								// 	webviewView.webview.postMessage({ type: 'finishedGenerate' });}, 5000);
+								this._generateText(request, token).then(result => {
+									if (!token.isCancellationRequested) {
+										this._showMarkdown(result).then(() => {
+											resolve();
+											webviewView.webview.postMessage({ type: 'finishedGenerate' });
+									})}
+								});
+							});
+
+							return p;
+						});										
+
 						break;
 					}
 			}
 		});
 	}
 
-	private async _generateText(value: TransformRequest): Promise<string> {
+	private async _generateText(value: TransformRequest, cancel: vscode.CancellationToken): Promise<string> {
 		// log the prompt to console
 		const options = {
 			projectId: 'cloud-blockers-ai',
@@ -78,6 +104,11 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		}
 
 		const transformer = new Transformer(options);
+
+		cancel.onCancellationRequested(() => {
+			transformer.cancel();
+		});
+
 		return transformer.generate(value);
 	}
 
@@ -131,15 +162,15 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 			</head>
 			<body>
 				<h3>Scope</h3>
-				<input type="radio" id="fileRadio" text="Open Tab" name="sourceType" class="source-radio" value="OpenTab" checked>
+				<input type="radio" id="fileRadio" name="sourceType" class="source-radio" value="OpenTab" checked>
+				<label for="fileRadio">Active Tab</label>
 				<input type="radio" id="repoRadio" name="sourceType" class="source-radio" value="Repository">
-					Repository
-				</input>
+				<label for="repoRadio">Repository</label>
 		  
 				<h3>Enter your prompt</h3>
 				<div><textarea class="prompt-input"></textarea></div>
 
-				<button class="add-color-button">Generate</button>
+				<button class="generate-button">Generate</button>
 
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>

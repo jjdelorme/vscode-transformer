@@ -65,7 +65,7 @@ export class Transformer {
       "- Establish a deep understanding of what the code does and any external dependencies not provided in the context\n" +
       "- Use all of the files to understand this specific environment and its dependencies\n" +
       "- When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed\n" +
-      "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax "
+      "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax for example [filename.cs](../directory/filename.cs) \n "
       "</instructions>\n";
 
       const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
@@ -78,6 +78,11 @@ export class Transformer {
 	    vscode.window.showErrorMessage("Error: " + error);
       return '';
     }
+  }
+
+  /** Cancel client requests. */
+  public async cancel(): Promise<void> {
+    return this.predictionServiceClient.close();
   }
 
   // Function to invoke the Vertex AI Model to generate text
@@ -103,7 +108,7 @@ export class Transformer {
 
     const callOptions = {
       // Vertex tends to take at least 30 seconds on repo level requests
-      timeout: 60000,
+      timeout: 120000,
     };
 
     const [response] = await this.predictionServiceClient.generateContent(request, callOptions);

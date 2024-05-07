@@ -4,8 +4,8 @@
 // It cannot access the main VS Code APIs directly.
 (function () {
     const vscode = acquireVsCodeApi();
-
-    document.querySelector('.add-color-button')?.addEventListener('click', () => {
+   
+    document.querySelector('.generate-button')?.addEventListener('click', () => {
         onGenerateClicked();
     });
 
@@ -13,9 +13,9 @@
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
         switch (message.type) {
-            case 'generateText':
+            case 'finishedGenerate':
                 {
-                    // Doesn't do anything yet.
+                    document.querySelector('.generate-button')?.classList.remove('generate-button-disabled');
                     break;
                 }
             case 'clearPrompt':
@@ -23,7 +23,6 @@
                     clearPrompt();
                     break;
                 }
-
         }
     });
 
@@ -36,6 +35,8 @@
             return;
         }
         const sourceType = document.querySelector('.source-radio:checked').value ?? 'OpenTab';
+
+        document.querySelector('.generate-button')?.classList.add('generate-button-disabled');
 
         vscode.postMessage({ type: 'generateText', value: { prompt: prompt, sourceType: sourceType } });
     }
