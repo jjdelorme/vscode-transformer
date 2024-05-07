@@ -40,7 +40,12 @@ body {
 }
 
 .generate-button-disabled {
-	display: none;
+	pointer-events: none;
+	opacity: 0.5;
+}
+
+.prompt-container {
+	margin-top: 10px;
 }
 
 .prompt-input {
@@ -49,12 +54,11 @@ body {
 	resize: vertical;
 }
 
-.source-radio {
-	display: inline-block;
-	margin-right: 5px;
+.radio-container {
+	display: flex;
+	align-items: start;
 }
-  
-.source-radio + label {
-	display: inline-block;
-	vertical-align: middle;
+
+.source-radio {
+    margin-right: 10px;
 }
