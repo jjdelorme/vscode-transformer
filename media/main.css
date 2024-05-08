@@ -59,6 +59,11 @@ body {
 	align-items: start;
 }
 
+label {
+	padding-top: 2px;
+}
+
 .source-radio {
-    margin-right: 10px;
+	max-width: 30px;
+    padding-right: 5px;
 }

@@ -168,7 +168,6 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 					<input type="radio" id="repoRadio" name="sourceType" class="source-radio" value="Repository">
 					<label for="repoRadio">Repository</label>
 				</div>
-
 				
 				<div class="prompt-container">
 					<h3>Enter your prompt</h3>	
