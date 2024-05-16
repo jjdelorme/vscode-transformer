@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { Transformer, SourceType, TransformRequest } from './transformer';
-import * as crypto from 'crypto';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -78,7 +77,7 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 								// 	resolve(); 
 								// 	webviewView.webview.postMessage({ type: 'finishedGenerate' });}, 5000);
 								this._generateText(request, token).then(result => {
-									if (!token.isCancellationRequested) {
+									if (!token.isCancellationRequested && result) {
 										this._showMarkdown(result).then(() => {
 											resolve();
 											webviewView.webview.postMessage({ type: 'finishedGenerate' });
@@ -95,12 +94,12 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
-	private async _generateText(value: TransformRequest, cancel: vscode.CancellationToken): Promise<string> {
+	private async _generateText(value: TransformRequest, cancel: vscode.CancellationToken): Promise<string | undefined> {
 		// log the prompt to console
 		const options = {
 			projectId: 'cloud-blockers-ai',
 			locationId: 'us-central1',
-			modelId: "gemini-1.5-pro-preview-0409"
+			modelId: "gemini-1.5-flash-preview-0514"
 		}
 
 		const transformer = new Transformer(options);
