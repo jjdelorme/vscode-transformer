@@ -36,9 +36,16 @@
         }
         const sourceType = document.querySelector('.source-radio:checked').value ?? 'OpenTab';
 
+        // Get the selected model value
+        const selectedModel = document.querySelector('.model-selector select').value;
+
         document.querySelector('.generate-button')?.classList.add('generate-button-disabled');
 
-        vscode.postMessage({ type: 'generateText', value: { prompt: prompt, sourceType: sourceType } });
+        vscode.postMessage({ type: 'generateText', value: { 
+            prompt: prompt, 
+            sourceType: sourceType,
+            model: selectedModel
+        } });
     }
 
     /**

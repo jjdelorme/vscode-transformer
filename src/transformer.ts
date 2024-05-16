@@ -2,10 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import {VertexAI} from "@google-cloud/vertexai";
 
-const SYSTEM_PROMPT = {
-  parts: [{ text: 'You are a helpful expert .NET developer with extensive experience in migrating applications from .NET Framework to the latest versions of .NET.' }],
-};
-
 // Define an interface for the TransformerOptions
 interface TransformerOptions {
   projectId: string;
@@ -22,6 +18,7 @@ export enum SourceType {
 export interface TransformRequest {
   sourceType: SourceType;
   prompt: string;
+  model: string;
 }
 
 // Define the Transformer class
@@ -52,37 +49,31 @@ export class Transformer {
 
   // Function to execute a code transformation
   public async generate(request: TransformRequest): Promise<string|undefined> {
-    try {
-      let fileContents = '';
+    let fileContents = '';
 
-      let instructions = "<instructions>\n" +
-        "- Thoroughly read the code provided in each file in the context\n";
+    let instructions = "<instructions>\n" +
+      "- Thoroughly read the code provided in each file in the context\n";
 
-      if (request.sourceType === SourceType.OpenTab) {
-        fileContents = this.getOpenTab();
-      } else {
-        instructions += 
-          "- Understand the dependencies between each file, developing a dependency tree in your mind\n" +
-          "- Establish a deep understanding of what the code does and any external dependencies not provided in the context\n" +
-          "- Use all of the files to understand this specific environment and its dependencies\n" +
-          "- When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed\n" +
-          "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax for example [filename.cs](../directory/filename.cs) \n "
-        
-        fileContents = await this.getFileContents('**/*.cs*');
-      }
-
-      instructions += "</instructions>\n";
-
-      const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
-
-      const result = await this.generateText(enrichedPrompt);
-
-      return result;
+    if (request.sourceType === SourceType.OpenTab) {
+      fileContents = this.getOpenTab();
+    } else {
+      instructions += 
+        "- Understand the dependencies between each file, developing a dependency tree in your mind\n" +
+        "- Establish a deep understanding of what the code does and any external dependencies not provided in the context\n" +
+        "- Use all of the files to understand this specific environment and its dependencies\n" +
+        "- When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed\n" +
+        "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax for example [filename.cs](../directory/filename.cs) \n "
+      
+      fileContents = await this.getFileContents('**/*.cs*');
     }
-    catch (error) {
-	    vscode.window.showErrorMessage("Error: " + error);
-      return undefined;
-    }
+
+    instructions += "</instructions>\n";
+
+    const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
+
+    const result = await this.generateText(enrichedPrompt);
+
+    return result;
   }
 
   /** Cancel client requests. */

@@ -67,3 +67,12 @@ label {
 	max-width: 30px;
     padding-right: 5px;
 }
+
+.model-selector {
+	padding-top: 10px;
+	padding-bottom: 15px;
+}
+
+.model-selector select {
+	margin-left: 10px;
+}

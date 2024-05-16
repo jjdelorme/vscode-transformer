@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import { Transformer, SourceType, TransformRequest } from './transformer';
 
+const MODEL_OPTIONS = {
+	projectId: 'cloud-blockers-ai',
+	locationId: 'us-central1',
+}
+
 export function activate(context: vscode.ExtensionContext) {
 
 	const provider = new PromptViewProvider(context.extensionUri);
@@ -46,69 +51,64 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 			]
 		};
 
+		// Create content for the web view
 		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
+		// Method to post back to the webview
+		const onFinishedGenerate = () => {
+			this._view?.webview.postMessage({ type: 'finishedGenerate' });
+		};
+
+		// Listen for messages from the webview.
 		webviewView.webview.onDidReceiveMessage(data => {
 			switch (data.type) {
 				case 'generateText':
 					{
-						const request: TransformRequest = {
-							// Force strongly typed reponse
-							sourceType: data.value.sourceType === 'Repository' ? 
-								SourceType.Repository : SourceType.OpenTab,
-							prompt: data.value.prompt
-						};
-
-						vscode.window.withProgress({
-							location: vscode.ProgressLocation.Notification,
-							title: "Executing your prompt...",
-							cancellable: true
-						}, (progress, token) => {
-							token.onCancellationRequested(() => {
-								console.log("User canceled the generation process");
-
-							});
-				
-							// Indeterminate progress indicator
-							progress.report({ increment: -1 });
-							
-							const p = new Promise<void>(resolve => {
-								// setTimeout(() => { 
-								// 	resolve(); 
-								// 	webviewView.webview.postMessage({ type: 'finishedGenerate' });}, 5000);
-								this._generateText(request, token).then(result => {
-									if (!token.isCancellationRequested && result) {
-										this._showMarkdown(result).then(() => {
-											resolve();
-											webviewView.webview.postMessage({ type: 'finishedGenerate' });
-									})}
-								});
-							});
-
-							return p;
-						});										
-
+						this._generateResponse(data.value)
+							.then(onFinishedGenerate);
 						break;
 					}
 			}
 		});
 	}
 
-	private async _generateText(value: TransformRequest, cancel: vscode.CancellationToken): Promise<string | undefined> {
-		// log the prompt to console
-		const options = {
-			projectId: 'cloud-blockers-ai',
-			locationId: 'us-central1',
-			modelId: "gemini-1.5-flash-preview-0514"
-		}
+	/** Invokes the model and displays the response or throws an error */
+	private async _generateResponse(data: any) {
+		vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: "Executing your prompt...",
+			cancellable: true
+		}, async (progress, token) => {
+			// Indeterminate progress indicator
+			progress.report({ increment: -1 });
 
-		const transformer = new Transformer(options);
+			const request: TransformRequest = {
+				// Force strongly typed reponse
+				sourceType: data.sourceType === 'Repository' ? 
+					SourceType.Repository : SourceType.OpenTab,
+				prompt: data.prompt,
+				model: data.model,
+			};
 
-		cancel.onCancellationRequested(() => {
-			transformer.cancel();
+			const transformer = new Transformer({...MODEL_OPTIONS, modelId: request.model});
+
+			token.onCancellationRequested(() => {
+				transformer.cancel();
+			});
+
+			try {
+				const result = await transformer.generate(request);
+
+				if (!token.isCancellationRequested && result) {
+					await this._showMarkdown(result);
+				}
+			} catch (error: any) {
+				console.error(error);
+				vscode.window.showErrorMessage(error?.message ?? 'An error occurred');
+			}
+
+			progress.report({ increment: 100 });
 		});
-
-		return transformer.generate(value);
 	}
 
 	private async _showMarkdown(response: string): Promise<void> {
@@ -160,6 +160,14 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 
 			</head>
 			<body>
+				<div class="model-selector">	
+					<label for="model">Select Model</label>
+					<select id="model">
+						<option value="gemini-1.5-pro-preview-0514" selected>gemini-1.5-pro-preview-0514</option>	
+						<option value="gemini-1.5-flash-preview-0514">gemini-1.5-flash-preview-0514</option>
+						<option value="gemini-1.0-pro-002">gemini-1.0-pro-002</option>
+					</select>
+				</div>
 				<h3>Scope</h3>
 				<div class="radio-container">
 					<input type="radio" id="fileRadio" name="sourceType" class="source-radio" value="OpenTab" checked>
