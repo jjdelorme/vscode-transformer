@@ -24,7 +24,6 @@ export interface TransformRequest {
 // Define the Transformer class
 export class Transformer {
   private readonly options: TransformerOptions;
-  private readonly model: string;
   private readonly vertex: VertexAI;
 
   constructor(options: TransformerOptions) {
@@ -34,20 +33,15 @@ export class Transformer {
       throw new Error("Missing configuration variable: projectId");
     }
 
-    this.model = `projects/${this.options.projectId}/locations/${this.options.locationId}/publishers/google/models/${this.options.modelId}`;
-
-    const clientOptions = {
-      apiEndpoint: `${this.options.locationId}-aiplatform.googleapis.com`,
-      
-    };
-
     this.vertex = new VertexAI({
       project: this.options.projectId,
       location: this.options.locationId,
     });
   }
 
-  // Function to execute a code transformation
+  /** Generate a string response (likely containing markdown) from the Gemini model based on
+   *  either an open tab or the entire repository.
+   */
   public async generate(request: TransformRequest): Promise<string|undefined> {
     let fileContents = '';
 
@@ -71,7 +65,7 @@ export class Transformer {
 
     const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
 
-    const result = await this.generateText(enrichedPrompt);
+    const result = await this.invokeModel(enrichedPrompt);
 
     return result;
   }
@@ -81,15 +75,41 @@ export class Transformer {
     // return this.vertex.
   }
 
-  // Function to invoke the Vertex AI Model to generate text
-  private async generateText(textPrompt: string): Promise<string> {
+  private getOpenTab(): string {
+    return this.formatFileContents(vscode.window.activeTextEditor?.document);
+  }
+
+  private async getFileContents(globPattern: string): Promise<string> {
+    const files = await vscode.workspace.findFiles(globPattern);
+    var text = '<files>\n';
+    for (const uri of files) {
+      const document = await vscode.workspace.openTextDocument(uri);
+      text += this.formatFileContents(document);
+    }
+
+    return text + '/n</files>';
+  }
+
+  private formatFileContents(document: vscode.TextDocument | undefined): string {
+    if (!document)
+      throw new Error("Document is undefined");
+    const fileName = path.relative(vscode.workspace.workspaceFolders![0].uri.path, document.uri.path);
+    const code = document.getText();
+    
+    return `<code filename='../${fileName}'>${code}</code>`;
+  }
+
+  /** Primary function that invokes the VertexAI model */
+  private async invokeModel(textPrompt: string): Promise<string> {
+    const generationConfig = {
+      'maxOutputTokens': 8192,
+      'temperature': 0.2,
+      'topP': 0.95,
+    };
+
     const generativeModel = this.vertex.preview.getGenerativeModel({
       model: this.options.modelId,
-      generationConfig: {
-        'maxOutputTokens': 8192,
-        'temperature': 0.2,
-        'topP': 0.95,
-      },
+      generationConfig: generationConfig,
       systemInstruction: {
         role: 'system',
         parts: [{"text": `You are a helpful expert .NET developer with extensive experience in migrating applications from .NET Framework to the latest versions of .NET.`}]
@@ -120,29 +140,5 @@ export class Transformer {
 
     const text = response.candidates![0].content?.parts![0].text ?? '';
     return text;
-  }
-
-  private getOpenTab(): string {
-    return this.formatFileContents(vscode.window.activeTextEditor?.document);
-  }
-
-  private async getFileContents(globPattern: string): Promise<string> {
-    const files = await vscode.workspace.findFiles(globPattern);
-    var text = '<files>\n';
-    for (const uri of files) {
-      const document = await vscode.workspace.openTextDocument(uri);
-      text += this.formatFileContents(document);
-    }
-
-    return text + '/n</files>';
-  }
-
-  private formatFileContents(document: vscode.TextDocument | undefined): string {
-    if (!document)
-      throw new Error("Document is undefined");
-    const fileName = path.relative(vscode.workspace.workspaceFolders![0].uri.path, document.uri.path);
-    const code = document.getText();
-    
-    return `<code filename='../${fileName}'>${code}</code>`;
-  }
+  }  
 }

@@ -165,7 +165,7 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 					<select id="model">
 						<option value="gemini-1.5-pro-preview-0514" selected>gemini-1.5-pro-preview-0514</option>	
 						<option value="gemini-1.5-flash-preview-0514">gemini-1.5-flash-preview-0514</option>
-						<option value="gemini-1.0-pro-002">gemini-1.0-pro-002</option>
+						<option value="gemini-1.0-pro">gemini-1.0-pro</option>
 					</select>
 				</div>
 				<h3>Scope</h3>
