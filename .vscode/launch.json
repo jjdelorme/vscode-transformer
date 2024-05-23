@@ -14,7 +14,8 @@
 			"outFiles": ["${workspaceFolder}/out/**/*.js"],
 			"preLaunchTask": "npm: watch",
 			"env": {
-				"GOOGLE_APPLICATION_CREDENTIALS": "/home/jasondel/dev/cloud-blockers-ai.json"
+				"PROJECT_ID": "genwealth-jasondel",
+				"GOOGLE_APPLICATION_CREDENTIALS": "/home/jasondel/dev/genwealth-jasondel-50718c70a8da.json"
 			  }			
 		}
 	]

@@ -1,8 +1,12 @@
 import * as vscode from 'vscode';
 import { Transformer, SourceType, TransformRequest } from './transformer';
 
+if (!process.env.PROJECT_ID) {
+	throw new Error('Please set the PROJECT_ID environment variable.')
+}
+
 const MODEL_OPTIONS = {
-	projectId: 'cloud-blockers-ai',
+	projectId: process.env.PROJECT_ID,
 	locationId: 'us-central1',
 }
 

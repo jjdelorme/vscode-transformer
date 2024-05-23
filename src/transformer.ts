@@ -46,7 +46,8 @@ export class Transformer {
     let fileContents = '';
 
     let instructions = "<instructions>\n" +
-      "- Thoroughly read the code provided in each file in the context\n";
+      //"- Thoroughly read the code provided in each file in the context\n";
+      "You are a rock star .NET C# developer with deep expertise in optimizing code for speed and efficiency. You have a track record of analyzing and making constructive code changes. You create compiler friendly code.";
 
     if (request.sourceType === SourceType.OpenTab) {
       fileContents = this.getOpenTab();
@@ -56,7 +57,9 @@ export class Transformer {
         "- Establish a deep understanding of what the code does and any external dependencies not provided in the context\n" +
         "- Use all of the files to understand this specific environment and its dependencies\n" +
         "- When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed\n" +
-        "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax for example [filename.cs](../directory/filename.cs) \n "
+        "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax for example [filename.cs](../directory/filename.cs) \n "; // +
+        // "- Respond using this JSON schema: " +
+        // "\{ \"filename\": \"file.cs\", \"converted-code\": \"//code here\", \"description\": \"string\" \},\}\}";
       
       fileContents = await this.getFileContents('**/*.cs*');
     }
@@ -64,6 +67,8 @@ export class Transformer {
     instructions += "</instructions>\n";
 
     const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
+
+    console.log('Complete Prompt:', enrichedPrompt);
 
     const result = await this.invokeModel(enrichedPrompt);
 
@@ -86,8 +91,9 @@ export class Transformer {
       const document = await vscode.workspace.openTextDocument(uri);
       text += this.formatFileContents(document);
     }
-
-    return text + '/n</files>';
+    text += '/n</files>';
+    
+    return text;
   }
 
   private formatFileContents(document: vscode.TextDocument | undefined): string {
@@ -105,6 +111,7 @@ export class Transformer {
       'maxOutputTokens': 8192,
       'temperature': 0.2,
       'topP': 0.95,
+      // 'response_mime_type': 'application/json',
     };
 
     const generativeModel = this.vertex.preview.getGenerativeModel({
