@@ -1,3 +1,4 @@
 node_modules/
 out/
 .mono/
+.vscode/launch.json
