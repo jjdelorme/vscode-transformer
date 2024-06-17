@@ -3,10 +3,13 @@ import * as path from 'path';
 import {VertexAI} from "@google-cloud/vertexai";
 
 // Define an interface for the TransformerOptions
-interface TransformerOptions {
+export interface TransformerOptions {
   projectId: string;
   locationId: string;
   modelId: string;
+  systemPrompt: string;
+  // Array of file types to include
+  include?: string[];
 }
 
 export enum SourceType {
@@ -18,7 +21,6 @@ export enum SourceType {
 export interface TransformRequest {
   sourceType: SourceType;
   prompt: string;
-  model: string;
 }
 
 // Define the Transformer class
@@ -47,7 +49,7 @@ export class Transformer {
 
     let instructions = "<instructions>\n" +
       //"- Thoroughly read the code provided in each file in the context\n";
-      "You are a rock star .NET C# developer with deep expertise in optimizing code for speed and efficiency. You have a track record of analyzing and making constructive code changes. You create compiler friendly code.";
+      this.options.systemPrompt;
 
     if (request.sourceType === SourceType.OpenTab) {
       fileContents = this.getOpenTab();

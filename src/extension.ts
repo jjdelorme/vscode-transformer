@@ -1,14 +1,7 @@
 import * as vscode from 'vscode';
-import { Transformer, SourceType, TransformRequest } from './transformer';
+import { Transformer, SourceType, TransformRequest, TransformerOptions } from './transformer';
 
-if (!process.env.PROJECT_ID) {
-	throw new Error('Please set the PROJECT_ID environment variable.')
-}
-
-const MODEL_OPTIONS = {
-	projectId: process.env.PROJECT_ID,
-	locationId: 'us-central1',
-}
+const EXTENSION_NAME = 'vscode-transformer';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -91,10 +84,9 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 				sourceType: data.sourceType === 'Repository' ? 
 					SourceType.Repository : SourceType.OpenTab,
 				prompt: data.prompt,
-				model: data.model,
 			};
 
-			const transformer = new Transformer({...MODEL_OPTIONS, modelId: request.model});
+			const transformer = new Transformer(this.getOptions(data.model));
 
 			token.onCancellationRequested(() => {
 				transformer.cancel();
@@ -113,6 +105,42 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 
 			progress.report({ increment: 100 });
 		});
+	}
+
+	private getOptions(modelId: string) : TransformerOptions {
+		if (!modelId) throw new Error("Model must be specified");
+		
+		const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+		
+		const options = { 
+			projectId: config.get<string>('projectId')!,
+			locationId: config.get<string>('locationId')!,
+			systemPrompt: config.get<string>('systemPrompt')!,
+			include: config.get<string[]>('include'),
+			modelId: modelId
+		 };
+
+		 if (!options.projectId) throw new Error("Missing project id");
+		 if (!options.locationId) throw new Error("Missing location id");
+		 if (!options.systemPrompt) throw new Error("Missing system prompt");
+
+		 return options as TransformerOptions;
+	}
+
+	private getModelOptions() : string {
+		const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+		const models = config.get<string[]>('models');
+
+		if (!models) throw new Error("Missing models");
+
+		const format = (model: string) => `<option value="${model}">${model}</option>`
+		let options = '';
+
+		models?.forEach(model => {
+			options += format(model);
+		});
+
+		return options;
 	}
 
 	private async _showMarkdown(response: string): Promise<void> {
@@ -141,6 +169,8 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css'));
 		const styleMainUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'main.css'));
 
+		const models = this.getModelOptions();
+
 		// Use a nonce to only allow a specific script to be run.
 		const nonce = getNonce();
 
@@ -167,9 +197,7 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 				<div class="model-selector">	
 					<label for="model">Select Model</label>
 					<select id="model">
-						<option value="gemini-1.5-pro-preview-0514" selected>gemini-1.5-pro-preview-0514</option>	
-						<option value="gemini-1.5-flash-preview-0514">gemini-1.5-flash-preview-0514</option>
-						<option value="gemini-1.0-pro">gemini-1.0-pro</option>
+						${models}
 					</select>
 				</div>
 				<h3>Scope</h3>

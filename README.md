@@ -4,7 +4,8 @@ Very simple demonstration of using Gemini 1.5 Pro to transform either the curren
 
 ## Configuration
 
-Create a `.vscode/launch.json` file in the project root and add the following configuration:
+### ADC Environment Variable
+The application uses the NodeJS SDK for invoking Vertex AI with Application Default Credentials. Create a `.vscode/launch.json` file in the project root and add the following configuration for the environment variable:
 ```diff
 	{
 		"version": "0.2.0",
@@ -18,13 +19,16 @@ Create a `.vscode/launch.json` file in the project root and add the following co
 				"outFiles": ["${workspaceFolder}/out/**/*.js"],
 				"preLaunchTask": "npm: watch",
 +				"env": {
-+					"PROJECT_ID": "YOUR-PROJECT-HERE",
 +					"GOOGLE_APPLICATION_CREDENTIALS": "YOUR-CREDENTIALS-JSON-HERE"
 				}			
 			}
 		]
 	}
 ```
+
+###
+Configure which GCP Project Id here.  You can also override the file types, system instruction and other settings specific to the `vscode-transformer` in VS Code User Settings:
+![Settings](./media/settings.png)
 
 ## Run
 

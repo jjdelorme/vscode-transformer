@@ -47,7 +47,37 @@
 					"when": "view == codeTransformer.promptView"
 				}
 			]
-		}
+		},
+		"configuration": {
+			"Title": "Code Transformer",
+			"properties": {
+				"vscode-transformer.include": {
+					"type": "array",
+					"items": {"type": "string"},
+					"default": ["*.cs", "*.aspx"]
+				},
+				"vscode-transformer.projectId": {
+					"type": "string",
+					"description": "GCP Project Id for Vertex AI"
+				},
+				"vscode-transformer.locationId": {
+					"type": "string",
+					"description": "GCP Region for Vertex AI",
+					"default": "us-central1"
+				},
+				"vscode-transformer.systemPrompt": {
+					"type": "string",
+					"description": "System Prompt for Vertex AI",
+					"default": "You are a rock star .NET C# developer with deep expertise in optimizing code for speed and efficiency. You have a track record of analyzing and making constructive code changes. You create compiler friendly code."
+				},
+				"vscode-transformer.models": {
+					"type": "array",
+					"description": "The Google model Ids to use for Vertex AI",
+					"items": {"type": "string"},
+					"default": ["gemini-1.5-pro-preview-0514", "gemini-1.5-flash-preview-0514", "gemini-1.0-pro"]
+				}
+			}
+		}		
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
