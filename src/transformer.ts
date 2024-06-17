@@ -4,6 +4,7 @@ import {VertexAI} from "@google-cloud/vertexai";
 
 // Define an interface for the TransformerOptions
 export interface TransformerOptions {
+  googleAdc?: string;
   projectId: string;
   locationId: string;
   modelId: string;
@@ -39,6 +40,10 @@ export class Transformer {
       project: this.options.projectId,
       location: this.options.locationId,
     });
+
+    if (this.options.googleAdc) {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = this.options.googleAdc;
+    }
   }
 
   /** Generate a string response (likely containing markdown) from the Gemini model based on
@@ -63,7 +68,7 @@ export class Transformer {
         // "- Respond using this JSON schema: " +
         // "\{ \"filename\": \"file.cs\", \"converted-code\": \"//code here\", \"description\": \"string\" \},\}\}";
       
-      fileContents = await this.getFileContents('**/*.cs*');
+      fileContents = await this.getFileContents();
     }
 
     instructions += "</instructions>\n";
@@ -86,8 +91,9 @@ export class Transformer {
     return this.formatFileContents(vscode.window.activeTextEditor?.document);
   }
 
-  private async getFileContents(globPattern: string): Promise<string> {
-    const files = await vscode.workspace.findFiles(globPattern);
+  private async getFileContents(): Promise<string> {
+    const files = await this.getFiles();
+    
     var text = '<files>\n';
     for (const uri of files) {
       const document = await vscode.workspace.openTextDocument(uri);
@@ -97,6 +103,23 @@ export class Transformer {
     
     return text;
   }
+
+  private async getFiles(): Promise<vscode.Uri[]> {
+    let files: vscode.Uri[] = [];
+    
+    if (!this.options.include) throw new Error("Missing configuration variable: include");
+
+    for (let i = 0; i < this.options.include.length; i++) {
+      const pattern = this.options.include[i];
+      const matches = await vscode.workspace.findFiles(pattern);
+      if (matches) {
+        files = files.concat(matches);
+      }
+    };
+
+    return files;
+  }
+
 
   private formatFileContents(document: vscode.TextDocument | undefined): string {
     if (!document)

@@ -113,6 +113,7 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
 		
 		const options = { 
+			googleAdc: config.get<string>('googleAdc'),
 			projectId: config.get<string>('projectId')!,
 			locationId: config.get<string>('locationId')!,
 			systemPrompt: config.get<string>('systemPrompt')!,

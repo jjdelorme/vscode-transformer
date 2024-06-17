@@ -4,35 +4,17 @@ Very simple demonstration of using Gemini 1.5 Pro to transform either the curren
 
 ## Configuration
 
-### ADC Environment Variable
-The application uses the NodeJS SDK for invoking Vertex AI with Application Default Credentials. Create a `.vscode/launch.json` file in the project root and add the following configuration for the environment variable:
-```diff
-	{
-		"version": "0.2.0",
-		"configurations": [
-			{
-				"name": "Run Extension",
-				"type": "extensionHost",
-				"request": "launch",
-				"runtimeExecutable": "${execPath}",
-				"args": ["--extensionDevelopmentPath=${workspaceRoot}"],
-				"outFiles": ["${workspaceFolder}/out/**/*.js"],
-				"preLaunchTask": "npm: watch",
-+				"env": {
-+					"GOOGLE_APPLICATION_CREDENTIALS": "YOUR-CREDENTIALS-JSON-HERE"
-				}			
-			}
-		]
-	}
-```
+The application uses the NodeJS SDK for invoking Vertex AI with Application Default Credentials. Configure this json file, project Id and other settings specific to the `vscode-transformer` in VS Code User Settings:
 
-###
-Configure which GCP Project Id here.  You can also override the file types, system instruction and other settings specific to the `vscode-transformer` in VS Code User Settings:
 ![Settings](./media/settings.png)
 
-## Run
-
-To run the application, or select `Run -> Start Debugging` from your VSCode instance.
+## Install
+	```bash
+	code --install-extension vscode-transformer-0.0.2.vsix
+	
+	cd ~/.vscode/extensions/jjdelorme.vscode-transform-0.0.2/
+	npm install
+	```
 
 ## Sample using complete repository
 
@@ -43,3 +25,6 @@ To run the application, or select `Run -> Start Debugging` from your VSCode inst
 ![Open Tab](./media/open-tab.png)
 
 Samples outputs were generated using the sample [ContosoUniversity](https://github.com/jjdelorme/ContosoUniversity) which is an old Microsoft sample of an ASP.NET Framework Application.
+
+
+code --install-extension vscode-transformer-0.0.2.vsix

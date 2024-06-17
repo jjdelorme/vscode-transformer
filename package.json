@@ -1,12 +1,12 @@
 {
 	"name": "vscode-transformer",
 	"description": "Code Transformer - Transform files and repositories using Gemini 1.5 Pro",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"publisher": "jjdelorme",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-extension-samples"
+		"url": "https://github.com/jjdelorme/vscode-transformer"
 	},
 	"private": true,
 	"engines": {
@@ -51,6 +51,10 @@
 		"configuration": {
 			"Title": "Code Transformer",
 			"properties": {
+				"vscode-transformer.googleAdc": {
+					"type": "string",
+					"description": "Location of your Google Application Default credentials json file.  This will become the value for the GOOGLE_APPLICATION_CREDENTIALS environment variable.  If not set, it will just look for this environment variable"
+				},
 				"vscode-transformer.include": {
 					"type": "array",
 					"items": {"type": "string"},
@@ -74,7 +78,7 @@
 					"type": "array",
 					"description": "The Google model Ids to use for Vertex AI",
 					"items": {"type": "string"},
-					"default": ["gemini-1.5-pro-preview-0514", "gemini-1.5-flash-preview-0514", "gemini-1.0-pro"]
+					"default": ["gemini-1.5-flash-preview-0514", "gemini-1.5-pro-preview-0514", "gemini-1.0-pro"]
 				}
 			}
 		}		
@@ -83,11 +87,12 @@
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
 		"lint": "eslint \"src/**/*.ts\"",
-		"watch": "tsc -w -p ./"
+		"watch": "tsc -w -p ./",
+		"package": "vsce package"
 	},
 	"devDependencies": {
 		"@google-cloud/aiplatform": "^3.19.1",
-		"@google-cloud/vertexai": "^1.1.0",
+		"@google-cloud/vertexai": "^1.2.0",
 		"@types/vscode": "^1.73.0",
 		"@typescript-eslint/eslint-plugin": "^6.7.0",
 		"@typescript-eslint/parser": "^6.7.0",
