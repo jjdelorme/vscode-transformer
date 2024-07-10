@@ -1,7 +1,7 @@
 {
 	"name": "vscode-transformer",
 	"description": "Code Transformer - Transform files and repositories using Gemini 1.5 Pro",
-	"version": "0.0.2",
+	"version": "0.0.4",
 	"publisher": "jjdelorme",
 	"license": "MIT",
 	"repository": {
@@ -71,14 +71,15 @@
 				},
 				"vscode-transformer.systemPrompt": {
 					"type": "string",
+					"editPresentation": "multilineText",
 					"description": "System Prompt for Vertex AI",
-					"default": "You are a rock star .NET C# developer with deep expertise in optimizing code for speed and efficiency. You have a track record of analyzing and making constructive code changes. You create compiler friendly code."
+					"default": "You are a rock star .NET C# developer with deep expertise. You have a track record of analyzing and making constructive code changes. You create compiler friendly code."
 				},
 				"vscode-transformer.models": {
 					"type": "array",
 					"description": "The Google model Ids to use for Vertex AI",
 					"items": {"type": "string"},
-					"default": ["gemini-1.5-flash-preview-0514", "gemini-1.5-pro-preview-0514", "gemini-1.0-pro"]
+					"default": ["gemini-1.5-flash-001", "gemini-1.5-pro-001", "gemini-1.0-pro"]
 				}
 			}
 		}		
