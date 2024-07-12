@@ -3,7 +3,12 @@ import { Transformer, SourceType, TransformRequest, TransformerOptions } from '.
 
 const EXTENSION_NAME = 'vscode-transformer';
 
+let outputChannel: vscode.OutputChannel;
+
 export function activate(context: vscode.ExtensionContext) {
+	outputChannel = vscode.window.createOutputChannel(EXTENSION_NAME);
+	outputChannel.appendLine('vscode Transformer initialized');
+	outputChannel.show();
 
 	const provider = new PromptViewProvider(context.extensionUri);
 
@@ -86,7 +91,7 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 				prompt: data.prompt,
 			};
 
-			const transformer = new Transformer(this.getOptions(data.model));
+			const transformer = new Transformer(this.getOptions(data.model), outputChannel);
 
 			token.onCancellationRequested(() => {
 				transformer.cancel();

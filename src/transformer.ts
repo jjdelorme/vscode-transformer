@@ -28,9 +28,11 @@ export interface TransformRequest {
 export class Transformer {
   private readonly options: TransformerOptions;
   private readonly vertex: VertexAI;
+  private readonly output: vscode.OutputChannel;
 
-  constructor(options: TransformerOptions) {
+  constructor(options: TransformerOptions, output: vscode.OutputChannel) {
     this.options = options;
+    this.output = output;
 
     if (!this.options.projectId) {
       throw new Error("Missing configuration variable: projectId");
@@ -44,6 +46,8 @@ export class Transformer {
     if (this.options.googleAdc) {
       process.env.GOOGLE_APPLICATION_CREDENTIALS = this.options.googleAdc;
     }
+
+    this.output.appendLine('Transformer initialized');
   }
 
   /** Generate a string response (likely containing markdown) from the Gemini model based on
@@ -75,7 +79,7 @@ export class Transformer {
 
     const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
 
-    console.log('Complete Prompt:', enrichedPrompt);
+    this.output.append('Complete Prompt:\n' + enrichedPrompt);
 
     const result = await this.invokeModel(enrichedPrompt);
 
@@ -84,6 +88,7 @@ export class Transformer {
 
   /** Cancel client requests. */
   public async cancel(): Promise<void> {
+    this.output.appendLine('Canceling...');
     // return this.vertex.
   }
 
@@ -106,14 +111,16 @@ export class Transformer {
 
   private async getFiles(): Promise<vscode.Uri[]> {
     let files: vscode.Uri[] = [];
-    
+
     if (!this.options.include) throw new Error("Missing configuration variable: include");
 
     for (let i = 0; i < this.options.include.length; i++) {
+      this.output.appendLine("Using the following files...");
       const pattern = this.options.include[i];
       const matches = await vscode.workspace.findFiles(pattern);
       if (matches) {
         files = files.concat(matches);
+        matches.forEach(m => this.output.appendLine(m.path));
       }
     };
 
@@ -139,7 +146,7 @@ export class Transformer {
       // 'response_mime_type': 'application/json',
     };
 
-    const generativeModel = this.vertex.preview.getGenerativeModel({
+    const generativeModel = this.vertex.getGenerativeModel({
       model: this.options.modelId,
       generationConfig: generationConfig,
       systemInstruction: {
@@ -154,7 +161,16 @@ export class Transformer {
       ],
     };
 
-    const result = await generativeModel.generateContent(req);
+    var result;
+    
+    try {
+      result = await generativeModel.generateContent(req);
+    }
+    catch (error: any) {
+      this.output.appendLine('[ERROR] An error occurred while generating the response');
+      this.output.appendLine(error);
+      throw new Error(error.message);
+    }
 
     if (!result.response)
       throw new Error("No response from Vertex AI")
