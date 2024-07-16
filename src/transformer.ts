@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import {GenerateContentRequest, GenerationConfig, ModelParams, VertexAI} from "@google-cloud/vertexai";
+import { GoogleAuth } from 'google-auth-library';
+import axios from 'axios';
 
 // Define an interface for the TransformerOptions
 export interface TransformerOptions {
@@ -39,7 +41,7 @@ export class Transformer {
   private readonly output: vscode.OutputChannel;
   private readonly generationConfig: GenerationConfig;
 
-  private contextCacheId?: string;
+  private contextCacheId?: string = 'projects/333666464107/locations/us-central1/cachedContents/4621326536379727872';
 
 
   constructor(options: TransformerOptions, output: vscode.OutputChannel) {
@@ -83,17 +85,7 @@ export class Transformer {
 
     // Create the cache
     if (request.sourceType === SourceType.Repository && request.useContextCache && context) {
-      const cacheRequest: GenerateContentRequest = {
-        contents: [
-          {
-            role: 'system',
-            parts: [{"text": this.options.systemPrompt}]            
-          },
-          {role: 'user', parts: [{text: context}]}
-        ],
-      };
-
-      this.contextCacheId = await this.createCache(cacheRequest, request.modelId);
+      this.contextCacheId = await this.createCache(context, request.modelId);
 
       this.output.append(`Created context cache id: ${this.contextCacheId}`);
     }
@@ -102,8 +94,6 @@ export class Transformer {
       model: request.modelId,
       generationConfig: this.generationConfig
     };
-
-    let generateContentRequest: ExtendedGenerateContentRequest;
 
     // Include system instruction only if we're using repository and not using the context cache
     if (request.sourceType === SourceType.Repository && 
@@ -115,35 +105,37 @@ export class Transformer {
           parts: [{"text": this.options.systemPrompt}]
         }
       }
-    }
-
+    } 
+    
     if (request.sourceType === SourceType.Repository && this.contextCacheId) {
       // Build the cached request
       this.output.appendLine(`Using cache id: ${this.contextCacheId}`);
 
-      generateContentRequest = {
+      const generateContentRequest = {
         cached_content: this.contextCacheId,
+        generationConfig: this.generationConfig,
         contents: [
           {role: 'user', parts: [{text: request.prompt}]}
         ],
       };
+
+      // use cached model
+      return await this.useCachedModel(generateContentRequest, request.modelId);
     } 
     else {
       // normal request
       const prompt = `${context}\nUser request: ${request.prompt}`;
 
-      generateContentRequest = {
+      const generateContentRequest = {
         contents: [
           {role: 'user', parts: [{text: prompt}]}
         ],
       };
 
       this.output.append('Complete Prompt:\n' + prompt);
+
+      return await this.invokeModel(modelParams, generateContentRequest);
     }
-
-    const result = await this.invokeModel(modelParams, generateContentRequest!);
-
-    return result;
   }
 
   /** Cancel client requests. */
@@ -215,6 +207,11 @@ export class Transformer {
   private async invokeModel(modelParams: ModelParams, generateContentRequest: GenerateContentRequest): Promise<string> {
     const generativeModel = this.vertex.getGenerativeModel(modelParams, { timeout: 120000 });
 
+
+    const filename = vscode.workspace.workspaceFolders![0].uri.fsPath + '/output.json';
+    const uri = vscode.Uri.file(filename);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(generateContentRequest)));
+
     var result;
     
     try {
@@ -245,35 +242,52 @@ export class Transformer {
   }
   
   /** Creates a context cache and returns the identifier */
-  private async createCache(generateContentRequest: GenerateContentRequest, modelId: string): Promise<string|undefined> {
-    this.output.appendLine("Dummy call to create cache");
-
-    /* Sample request (https://cloud.google.com/vertex-ai/generative-ai/docs/context-cache/context-cache-create)
-    {
-      "model": "projects/PROJECT_ID/locations/LOCATION/publishers/google/models/gemini-1.5-pro-001",
-      "contents": [{
-        "role": "user",
-          "parts": [{
-            "fileData": {
-              "mimeType": "MIME_TYPE",
-              "fileUri": "CONTENT_TO_CACHE_URI"
-            }
-          }]
+  private async createCache(context: string, modelId: string): Promise<string|undefined> {
+    // schema here:
+    // https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations.cachedContents
+    const cacheRequest = {
+      model: `projects/${this.options.projectId}/locations/${this.options.locationId}/publishers/google/models/${modelId}`,
+      systemInstruction: {
+        role: 'system',
+        parts: [{"text": this.options.systemPrompt}]            
       },
-      {
-        "role": "model",
-          "parts": [{
-            "text": "This is sample text to demonstrate explicit caching."
-          }]
-      }]
-    }
-    */
+      contents: [
+        {role: 'user', parts: [{text: context}]}
+      ],
+      ttl: '3600s' // TODO: make this config driven
+    };
+    
+    try {
+      // Get the access token
+      const token = await this.getToken();
 
-    const request = { 
-      ...generateContentRequest,
-      'model': `projects/${this.options.projectId}/locations/${this.options.locationId}/publishers/google/models/${modelId}`,
-    }
+      const config = {
+        method: 'post',
+        url: `https://${this.options.locationId}-aiplatform.googleapis.com/v1beta1/projects/${this.options.projectId}/locations/${this.options.locationId}/cachedContents`,
+        headers: {
+          'Authorization': `Bearer ${token.token}`,
+          'Content-Type': 'application/json'
+        },
+        data: { cached_content: cacheRequest }
+      };
 
+      // write the request to a file for debugging:
+      // const filename = vscode.workspace.workspaceFolders![0].uri.fsPath + '/cache2.json';
+      // const uri = vscode.Uri.file(filename);
+      // await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(config)));
+
+      // Make the API request
+      const response = await axios(config);
+
+      console.log('Context cache created:', response.data);
+      
+      return response.data?.name;
+
+    } catch (error: any) {
+      this.output.appendLine('[ERROR] An error occurred while creating the cache');
+      this.output.appendLine(error);
+      throw new Error(error.message);
+    }
 
     /* Expected sample response:
     {
@@ -286,6 +300,53 @@ export class Transformer {
     */
 
     //return "projects/PROJECT_NUMBER/locations/us-central1/cachedContents/CACHE_ID";
-    return undefined;
+    
+  }
+
+  /** Since this isn't provided by the SDK yet, make a direct HTTP call. */
+  private async useCachedModel(request: ExtendedGenerateContentRequest, modelId: string): Promise<string|undefined> {
+    try {
+      // Get the access token
+      const token = await this.getToken();
+
+      const config = {
+        method: 'post',
+        url: `https://${this.options.locationId}-aiplatform.googleapis.com/v1beta1/projects/${this.options.projectId}/locations/${this.options.locationId}/publishers/google/models/${modelId}:generateContent`,
+        headers: {
+          'Authorization': `Bearer ${token.token}`,
+          'Content-Type': 'application/json; charset=utf-8'
+        },
+        data: request,
+      };
+
+      // Make the API request
+      const response = await axios(config);
+      
+      if (!response.data)
+        throw new Error("No response from Vertex AI")
+
+      const text = response.data.candidates![0].content?.parts![0].text ?? '';
+      
+      return text;
+    } catch (error: any) {
+      this.output.appendLine('[ERROR] An error occurred while generating the response from cache');
+      this.output.appendLine(error);
+      throw new Error(error.message);
+    }
+  }
+
+  /** Wrap getting an authorization token for HTTP requests */
+  private async getToken() {
+    const auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/cloud-platform']
+    });
+
+    // Get the client
+    const client = await auth.getClient();
+
+    // Get the access token
+    const token = await client.getAccessToken();
+    
+    return token;
   }
 }

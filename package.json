@@ -57,8 +57,14 @@
 				},
 				"vscode-transformer.include": {
 					"type": "array",
-					"items": {"type": "string"},
-					"default": ["**/*.cs", "**/*.vb", "**/*.aspx"],
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"**/*.cs",
+						"**/*.vb",
+						"**/*.aspx"
+					],
 					"description": "Glob patterns to include in the context (like `**​/*.{ts,js}` or `*.{ts,js}`)"
 				},
 				"vscode-transformer.projectId": {
@@ -79,8 +85,14 @@
 				"vscode-transformer.models": {
 					"type": "array",
 					"description": "The Google model Ids to use for Vertex AI",
-					"items": {"type": "string"},
-					"default": ["gemini-1.5-flash-001", "gemini-1.5-pro-001", "gemini-1.0-pro"]
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"gemini-1.5-flash-001",
+						"gemini-1.5-pro-001",
+						"gemini-1.0-pro"
+					]
 				},
 				"vscode-transformer.temperature": {
 					"type": "number",
@@ -93,7 +105,7 @@
 					"default": 0.95
 				}
 			}
-		}		
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
@@ -110,5 +122,9 @@
 		"@typescript-eslint/parser": "^6.7.0",
 		"eslint": "^8.32.0",
 		"typescript": "^5.4.2"
+	},
+	"dependencies": {
+		"axios": "^1.7.2",
+		"google-auth-library": "^9.11.0"
 	}
 }
