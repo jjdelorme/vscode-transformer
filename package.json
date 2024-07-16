@@ -1,7 +1,7 @@
 {
 	"name": "vscode-transformer",
 	"description": "Code Transformer - Transform files and repositories using Gemini 1.5 Pro",
-	"version": "0.0.8",
+	"version": "0.0.9",
 	"publisher": "jjdelorme",
 	"license": "MIT",
 	"repository": {
