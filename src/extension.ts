@@ -111,7 +111,9 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 				const result = await this._transformer.generate(request);
 
 				if (!token.isCancellationRequested && result) {
-					await this._showMarkdown(result);
+					const markdown = `## User's Prompt \n${data.prompt}\n## Model Response \n${result}`;
+
+					await this._showMarkdown(markdown);
 				}
 			} catch (error: any) {
 				console.error(error);
@@ -131,6 +133,9 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 			locationId: config.get<string>('locationId')!,
 			systemPrompt: config.get<string>('systemPrompt')!,
 			include: config.get<string[]>('include'),
+			temperature: config.get<number>('temperature'),
+			topP: config.get<number>('topP'),
+			debugEnabled: config.get<boolean>('debugEnabled'),			
 		 };
 
 		 if (!options.projectId) throw new Error("Missing project id");
