@@ -8,7 +8,7 @@ let outputChannel: vscode.OutputChannel;
 let packageVersion: string;
 
 export function activate(context: vscode.ExtensionContext) {
-	packageVersion = JSON.parse(readFileSync('./package.json', 'utf8'))?.version;
+	packageVersion = context.extension.packageJSON.version;
 
 	outputChannel = vscode.window.createOutputChannel(EXTENSION_NAME);
 	outputChannel.appendLine(`vscode Transformer (v${packageVersion}) initialized`);
