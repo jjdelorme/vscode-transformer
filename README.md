@@ -4,9 +4,9 @@ Very simple demonstration of using Gemini to transform either the current open t
 
 ## Install
 	```bash
-	code --install-extension vscode-transformer-0.1.0.vsix
+	code --install-extension vscode-transformer-0.1.1.vsix
 	
-	cd ~/.vscode/extensions/jjdelorme.vscode-transform-0.1.0/
+	cd ~/.vscode/extensions/jjdelorme.vscode-transform-0.1.1/
 	npm install
 	```
 
