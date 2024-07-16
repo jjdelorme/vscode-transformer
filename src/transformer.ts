@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import {GenerateContentRequest, VertexAI} from "@google-cloud/vertexai";
+import {GenerateContentRequest, GenerationConfig, ModelParams, VertexAI} from "@google-cloud/vertexai";
 
 // Define an interface for the TransformerOptions
 export interface TransformerOptions {
@@ -8,8 +8,10 @@ export interface TransformerOptions {
   projectId: string;
   locationId: string;
   systemPrompt: string;
+  temperature: number;
   // Array of file types to include
   include?: string[];
+  topP?: number;
 }
 
 export enum SourceType {
@@ -25,11 +27,17 @@ export interface TransformRequest {
   useContextCache: boolean;
 }
 
+// SDK doesn't support this yet (https://cloud.google.com/vertex-ai/generative-ai/docs/context-cache/context-cache-use)
+interface ExtendedGenerateContentRequest extends GenerateContentRequest {
+  cached_content?: string;
+}
+
 // Define the Transformer class
 export class Transformer {
   private readonly options: TransformerOptions;
   private readonly vertex: VertexAI;
   private readonly output: vscode.OutputChannel;
+  private readonly generationConfig: GenerationConfig;
 
   private contextCacheId?: string;
 
@@ -47,6 +55,13 @@ export class Transformer {
       location: this.options.locationId,
     });
 
+    this.generationConfig = {
+      'maxOutputTokens': 8192,
+      'temperature': this.options.temperature,
+      'topP': this.options.topP,
+      // 'response_mime_type': 'application/json',
+    };
+
     if (this.options.googleAdc) {
       process.env.GOOGLE_APPLICATION_CREDENTIALS = this.options.googleAdc;
     }
@@ -58,34 +73,75 @@ export class Transformer {
    *  either an open tab or the entire repository.
    */
   public async generate(request: TransformRequest): Promise<string|undefined> {
-    let fileContents = '';
-
-    let instructions = "<instructions>\n" +
-      //"- Thoroughly read the code provided in each file in the context\n";
-      this.options.systemPrompt;
-
-    if (request.sourceType === SourceType.OpenTab) {
-      fileContents = this.getOpenTab();
-    } else {
-      instructions += 
-        "- Understand the dependencies between each file, developing a dependency tree in your mind\n" +
-        "- Establish a deep understanding of what the code does and any external dependencies not provided in the context\n" +
-        "- Use all of the files to understand this specific environment and its dependencies\n" +
-        "- When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed\n" +
-        "- When responding in the context of a file return the filename as a clickable hyperlink to the filename in markdown syntax for example [filename.cs](../directory/filename.cs) \n "; // +
-        // "- Respond using this JSON schema: " +
-        // "\{ \"filename\": \"file.cs\", \"converted-code\": \"//code here\", \"description\": \"string\" \},\}\}";
-      
-      fileContents = await this.getFileContents();
+    let context: string | undefined;
+    
+    if ( request.sourceType === SourceType.OpenTab || 
+        // Using repo with cache for the first time
+        (request.sourceType === SourceType.Repository && request.useContextCache && !this.contextCacheId) ) {
+      context = await this.getContext(request.sourceType);
     }
 
-    instructions += "</instructions>\n";
+    // Create the cache
+    if (request.sourceType === SourceType.Repository && request.useContextCache && context) {
+      const cacheRequest: GenerateContentRequest = {
+        contents: [
+          {
+            role: 'system',
+            parts: [{"text": this.options.systemPrompt}]            
+          },
+          {role: 'user', parts: [{text: context}]}
+        ],
+      };
 
-    const enrichedPrompt = `"<context>\n${fileContents}\n</context>\n\n${instructions}\nUser request: ${request.prompt}"`;
+      this.contextCacheId = await this.createCache(cacheRequest, request.modelId);
 
-    this.output.append('Complete Prompt:\n' + enrichedPrompt);
+      this.output.append(`Created context cache id: ${this.contextCacheId}`);
+    }
 
-    const result = await this.invokeModel(enrichedPrompt, request.modelId);
+    let modelParams: ModelParams = { 
+      model: request.modelId,
+      generationConfig: this.generationConfig
+    };
+
+    let generateContentRequest: ExtendedGenerateContentRequest;
+
+    // Include system instruction only if we're using repository and not using the context cache
+    if (request.sourceType === SourceType.Repository && 
+        (!request.useContextCache || !this.contextCacheId )) {
+      modelParams = { 
+        ...modelParams, 
+        systemInstruction: {
+          role: 'system',
+          parts: [{"text": this.options.systemPrompt}]
+        }
+      }
+    }
+
+    if (request.sourceType === SourceType.Repository && this.contextCacheId) {
+      // Build the cached request
+      this.output.appendLine(`Using cache id: ${this.contextCacheId}`);
+
+      generateContentRequest = {
+        cached_content: this.contextCacheId,
+        contents: [
+          {role: 'user', parts: [{text: request.prompt}]}
+        ],
+      };
+    } 
+    else {
+      // normal request
+      const prompt = `${context}\nUser request: ${request.prompt}`;
+
+      generateContentRequest = {
+        contents: [
+          {role: 'user', parts: [{text: prompt}]}
+        ],
+      };
+
+      this.output.append('Complete Prompt:\n' + prompt);
+    }
+
+    const result = await this.invokeModel(modelParams, generateContentRequest!);
 
     return result;
   }
@@ -94,6 +150,20 @@ export class Transformer {
   public async cancel(): Promise<void> {
     this.output.appendLine('Canceling...');
     // return this.vertex.
+  }
+
+  private async getContext(sourceType: SourceType): Promise<string> {
+    let fileContents = '<context>\n';
+
+    if (sourceType === SourceType.OpenTab) {
+      fileContents += this.getOpenTab();
+    } else {     
+      fileContents += await this.getFileContents();
+    }
+
+    fileContents += '\n</context>\n\n';
+
+    return fileContents;
   }
 
   private getOpenTab(): string {
@@ -141,34 +211,14 @@ export class Transformer {
     return `<code filename='../${fileName}'>${code}</code>`;
   }
 
-  /** Primary function that invokes the VertexAI model */
-  private async invokeModel(textPrompt: string, modelId: string): Promise<string> {
-    const generationConfig = {
-      'maxOutputTokens': 8192,
-      'temperature': 0.2,
-      'topP': 0.95,
-      // 'response_mime_type': 'application/json',
-    };
-
-    const generativeModel = this.vertex.getGenerativeModel({
-      model: modelId,
-      generationConfig: generationConfig,
-      systemInstruction: {
-        role: 'system',
-        parts: [{"text": `You are a helpful expert .NET developer with extensive experience in migrating applications from .NET Framework to the latest versions of .NET.`}]
-      },
-    }, { timeout: 120000 });
-
-    const req = {
-      contents: [
-        {role: 'user', parts: [{text: textPrompt}]}
-      ],
-    };
+  /** Wraps invocation of the VertexAI and handling response */
+  private async invokeModel(modelParams: ModelParams, generateContentRequest: GenerateContentRequest): Promise<string> {
+    const generativeModel = this.vertex.getGenerativeModel(modelParams, { timeout: 120000 });
 
     var result;
     
     try {
-      result = await generativeModel.generateContent(req);
+      result = await generativeModel.generateContent(generateContentRequest);
     }
     catch (error: any) {
       this.output.appendLine('[ERROR] An error occurred while generating the response');
@@ -195,7 +245,35 @@ export class Transformer {
   }
   
   /** Creates a context cache and returns the identifier */
-  private async createCache(req: GenerateContentRequest): Promise<string> {
+  private async createCache(generateContentRequest: GenerateContentRequest, modelId: string): Promise<string|undefined> {
+    this.output.appendLine("Dummy call to create cache");
+
+    /* Sample request (https://cloud.google.com/vertex-ai/generative-ai/docs/context-cache/context-cache-create)
+    {
+      "model": "projects/PROJECT_ID/locations/LOCATION/publishers/google/models/gemini-1.5-pro-001",
+      "contents": [{
+        "role": "user",
+          "parts": [{
+            "fileData": {
+              "mimeType": "MIME_TYPE",
+              "fileUri": "CONTENT_TO_CACHE_URI"
+            }
+          }]
+      },
+      {
+        "role": "model",
+          "parts": [{
+            "text": "This is sample text to demonstrate explicit caching."
+          }]
+      }]
+    }
+    */
+
+    const request = { 
+      ...generateContentRequest,
+      'model': `projects/${this.options.projectId}/locations/${this.options.locationId}/publishers/google/models/${modelId}`,
+    }
+
 
     /* Expected sample response:
     {
@@ -207,6 +285,7 @@ export class Transformer {
     }
     */
 
-    return "projects/PROJECT_NUMBER/locations/us-central1/cachedContents/CACHE_ID";
+    //return "projects/PROJECT_NUMBER/locations/us-central1/cachedContents/CACHE_ID";
+    return undefined;
   }
 }

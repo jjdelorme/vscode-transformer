@@ -74,13 +74,23 @@
 					"type": "string",
 					"editPresentation": "multilineText",
 					"description": "System Prompt for Vertex AI",
-					"default": "You are a rock star .NET C# developer with deep expertise. You have a track record of analyzing and making constructive code changes. You create compiler friendly code."
+					"default": "You are a helpful expert .NET developer with extensive experience in migrating applications from .NET Framework to the latest versions of .NET. Understand the dependencies between each file, developing a dependency tree in your mind. Establish a deep understanding of what the code does and any external dependencies not provided in the context. Use all of the files to understand this specific environment and its dependencies.  When responding to the user request, be thorough and return the complete files when asked to migrate even if all the lines have not changed, return the filename as a clickable hyperlink to the filename in markdown syntax for example [filename.cs](../directory/filename.cs)"
 				},
 				"vscode-transformer.models": {
 					"type": "array",
 					"description": "The Google model Ids to use for Vertex AI",
 					"items": {"type": "string"},
 					"default": ["gemini-1.5-flash-001", "gemini-1.5-pro-001", "gemini-1.0-pro"]
+				},
+				"vscode-transformer.temperature": {
+					"type": "number",
+					"description": "Temperature for Vertex AI",
+					"default": 0.2
+				},
+				"vscode-transformer.topP": {
+					"type": "number",
+					"description": "topP for Vertex AI",
+					"default": 0.95
 				}
 			}
 		}		

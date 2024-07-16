@@ -60,12 +60,15 @@
         // Get the selected model value
         const selectedModel = document.querySelector('.model-selector select').value;
 
+        const useContextCache = cacheCheckbox?.checked;
+
         document.querySelector('.generate-button')?.classList.add('generate-button-disabled');
 
         vscode.postMessage({ type: 'generateText', value: { 
             prompt: prompt, 
             sourceType: sourceType,
-            model: selectedModel
+            model: selectedModel,
+            useCache: useContextCache,
         } });
     }
 
