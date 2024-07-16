@@ -9,6 +9,27 @@
         onGenerateClicked();
     });
 
+    
+    const cacheCheckbox = document.querySelector('input#cacheCheckbox');
+    
+    if (cacheCheckbox) {
+        // Disable onload.
+        cacheCheckbox.setAttribute('disabled', 'true');
+
+        const radioButtons = document.querySelectorAll('.source-radio');
+        
+        // Handle on change
+        radioButtons.forEach(radioButton => {
+            radioButton.addEventListener('change', () => {
+                if (radioButton.id === 'repoRadio') {
+                    cacheCheckbox.removeAttribute('disabled');
+                } else {
+                    cacheCheckbox.setAttribute('disabled', 'true');
+                }
+            });
+        });
+    }
+
     // Handle messages sent from the extension to the webview
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent

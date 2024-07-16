@@ -1,13 +1,17 @@
 import * as vscode from 'vscode';
 import { Transformer, SourceType, TransformRequest, TransformerOptions } from './transformer';
+import { readFileSync } from 'fs';
 
 const EXTENSION_NAME = 'vscode-transformer';
 
 let outputChannel: vscode.OutputChannel;
+let packageVersion: string;
 
 export function activate(context: vscode.ExtensionContext) {
+	packageVersion = JSON.parse(readFileSync('./package.json', 'utf8'))?.version;
+
 	outputChannel = vscode.window.createOutputChannel(EXTENSION_NAME);
-	outputChannel.appendLine('vscode Transformer initialized');
+	outputChannel.appendLine(`vscode Transformer (v${packageVersion}) initialized`);
 	outputChannel.show();
 
 	const provider = new PromptViewProvider(context.extensionUri);
@@ -27,9 +31,14 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 
 	private _view?: vscode.WebviewView;
 
+	private readonly _transformer: Transformer;
+
+
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
-	) { }
+	) { 
+		this._transformer = new Transformer(this.getOptions(), outputChannel);
+	}
 
 	public clearPrompt(): void {
 		if (this._view) {
@@ -84,21 +93,22 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 			// Indeterminate progress indicator
 			progress.report({ increment: -1 });
 
+			// No way to use the cancel the vertex API call, will need to wrap
+			/*
+			token.onCancellationRequested(() => {
+				this._transformer.cancel();
+			}); */
+
 			const request: TransformRequest = {
-				// Force strongly typed reponse
 				sourceType: data.sourceType === 'Repository' ? 
 					SourceType.Repository : SourceType.OpenTab,
 				prompt: data.prompt,
+				modelId: data.model,
+				useContextCache: data.useCache ?? false,
 			};
 
-			const transformer = new Transformer(this.getOptions(data.model), outputChannel);
-
-			token.onCancellationRequested(() => {
-				transformer.cancel();
-			});
-
 			try {
-				const result = await transformer.generate(request);
+				const result = await this._transformer.generate(request);
 
 				if (!token.isCancellationRequested && result) {
 					await this._showMarkdown(result);
@@ -112,9 +122,7 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
-	private getOptions(modelId: string) : TransformerOptions {
-		if (!modelId) throw new Error("Model must be specified");
-		
+	private getOptions() : TransformerOptions {
 		const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
 		
 		const options = { 
@@ -123,7 +131,6 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 			locationId: config.get<string>('locationId')!,
 			systemPrompt: config.get<string>('systemPrompt')!,
 			include: config.get<string[]>('include'),
-			modelId: modelId
 		 };
 
 		 if (!options.projectId) throw new Error("Missing project id");
@@ -213,13 +220,23 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 					<input type="radio" id="repoRadio" name="sourceType" class="source-radio" value="Repository">
 					<label for="repoRadio">Repository</label>
 				</div>
-				
+			
 				<div class="prompt-container">
-					<h3>Enter your prompt</h3>	
+					<h3>Enter your prompt</h3>
 					<textarea class="prompt-input"></textarea>
 				</div>
 
+				<div class="cache-checkbox">
+					<input type="checkbox" id="cacheCheckbox">Use Cache</input>
+				</div>					
+
 				<button class="generate-button">Generate</button>
+
+				<div>
+					<p>
+					Version: ${packageVersion}
+					</p>
+				<div>
 
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>

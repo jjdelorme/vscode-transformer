@@ -1,13 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import {VertexAI} from "@google-cloud/vertexai";
+import {GenerateContentRequest, VertexAI} from "@google-cloud/vertexai";
 
 // Define an interface for the TransformerOptions
 export interface TransformerOptions {
   googleAdc?: string;
   projectId: string;
   locationId: string;
-  modelId: string;
   systemPrompt: string;
   // Array of file types to include
   include?: string[];
@@ -22,6 +21,8 @@ export enum SourceType {
 export interface TransformRequest {
   sourceType: SourceType;
   prompt: string;
+  modelId: string;
+  useContextCache: boolean;
 }
 
 // Define the Transformer class
@@ -29,6 +30,9 @@ export class Transformer {
   private readonly options: TransformerOptions;
   private readonly vertex: VertexAI;
   private readonly output: vscode.OutputChannel;
+
+  private contextCacheId?: string;
+
 
   constructor(options: TransformerOptions, output: vscode.OutputChannel) {
     this.options = options;
@@ -81,7 +85,7 @@ export class Transformer {
 
     this.output.append('Complete Prompt:\n' + enrichedPrompt);
 
-    const result = await this.invokeModel(enrichedPrompt);
+    const result = await this.invokeModel(enrichedPrompt, request.modelId);
 
     return result;
   }
@@ -138,7 +142,7 @@ export class Transformer {
   }
 
   /** Primary function that invokes the VertexAI model */
-  private async invokeModel(textPrompt: string): Promise<string> {
+  private async invokeModel(textPrompt: string, modelId: string): Promise<string> {
     const generationConfig = {
       'maxOutputTokens': 8192,
       'temperature': 0.2,
@@ -147,7 +151,7 @@ export class Transformer {
     };
 
     const generativeModel = this.vertex.getGenerativeModel({
-      model: this.options.modelId,
+      model: modelId,
       generationConfig: generationConfig,
       systemInstruction: {
         role: 'system',
@@ -188,5 +192,21 @@ export class Transformer {
 
     const text = response.candidates![0].content?.parts![0].text ?? '';
     return text;
-  }  
+  }
+  
+  /** Creates a context cache and returns the identifier */
+  private async createCache(req: GenerateContentRequest): Promise<string> {
+
+    /* Expected sample response:
+    {
+      "name": "projects/PROJECT_NUMBER/locations/us-central1/cachedContents/CACHE_ID",
+      "model": "projects/PROJECT_ID/locations/us-central1/publishers/google/models/gemini-1.5-pro-001",
+      "createTime": "2024-06-04T01:11:50.808236Z",
+      "updateTime": "2024-06-04T01:11:50.808236Z",
+      "expireTime": "2024-06-04T02:11:50.794542Z"
+    }
+    */
+
+    return "projects/PROJECT_NUMBER/locations/us-central1/cachedContents/CACHE_ID";
+  }
 }

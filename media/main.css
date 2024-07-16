@@ -59,6 +59,10 @@ body {
 	align-items: start;
 }
 
+.cache-checkbox {
+	margin: 5px;
+}
+
 label {
 	padding-top: 2px;
 }
