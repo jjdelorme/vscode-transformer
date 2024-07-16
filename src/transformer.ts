@@ -14,6 +14,7 @@ export interface TransformerOptions {
   // Array of file types to include
   include?: string[];
   topP?: number;
+  debugEnabled?: boolean;
 }
 
 export enum SourceType {
@@ -41,7 +42,7 @@ export class Transformer {
   private readonly output: vscode.OutputChannel;
   private readonly generationConfig: GenerationConfig;
 
-  private contextCacheId?: string = 'projects/333666464107/locations/us-central1/cachedContents/4621326536379727872';
+  private contextCacheId?: string;
 
 
   constructor(options: TransformerOptions, output: vscode.OutputChannel) {
@@ -268,13 +269,15 @@ export class Transformer {
           'Authorization': `Bearer ${token.token}`,
           'Content-Type': 'application/json'
         },
-        data: { cached_content: cacheRequest }
+        data: cacheRequest
       };
 
       // write the request to a file for debugging:
-      // const filename = vscode.workspace.workspaceFolders![0].uri.fsPath + '/cache2.json';
-      // const uri = vscode.Uri.file(filename);
-      // await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(config)));
+      if (this.options.debugEnabled) {
+        const filename = vscode.workspace.workspaceFolders![0].uri.fsPath + '/cache.json';
+        const uri = vscode.Uri.file(filename);
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(config)));
+      }
 
       // Make the API request
       const response = await axios(config);

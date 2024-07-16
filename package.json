@@ -1,7 +1,7 @@
 {
 	"name": "vscode-transformer",
 	"description": "Code Transformer - Transform files and repositories using Gemini 1.5 Pro",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"publisher": "jjdelorme",
 	"license": "MIT",
 	"repository": {
@@ -102,7 +102,12 @@
 					"type": "number",
 					"description": "topP for Vertex AI",
 					"default": 0.95
-				}
+				},
+				"vscode-transformer.debugEnabled": {
+					"type": "boolean",
+					"description": "Whether to write out debug files",
+					"default": false
+				}				
 			}
 		}
 	},
