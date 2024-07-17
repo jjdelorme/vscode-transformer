@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import {GenerateContentRequest, GenerationConfig, ModelParams, VertexAI} from "@google-cloud/vertexai";
+import {GenerateContentRequest, GenerationConfig, HarmBlockThreshold, HarmCategory, ModelParams, SafetySetting, VertexAI} from "@google-cloud/vertexai";
 import { GoogleAuth } from 'google-auth-library';
 import axios from 'axios';
 
@@ -41,6 +41,7 @@ export class Transformer {
   private readonly vertex: VertexAI;
   private readonly output: vscode.OutputChannel;
   private readonly generationConfig: GenerationConfig;
+  private readonly safetySettings: SafetySetting[];
 
   private contextCacheId?: string;
 
@@ -65,6 +66,25 @@ export class Transformer {
       // 'response_mime_type': 'application/json',
     };
 
+    this.safetySettings = [
+      {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_NONE
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_UNSPECIFIED,
+        threshold: HarmBlockThreshold.BLOCK_NONE
+      }
+    ];
+
     if (this.options.googleAdc) {
       process.env.GOOGLE_APPLICATION_CREDENTIALS = this.options.googleAdc;
     }
@@ -79,6 +99,8 @@ export class Transformer {
     let context: string | undefined;
     
     if ( request.sourceType === SourceType.OpenTab || 
+        // Use repo without cache  
+        (request.sourceType === SourceType.Repository && !request.useContextCache) ||
         // Using repo with cache for the first time
         (request.sourceType === SourceType.Repository && request.useContextCache && !this.contextCacheId) ) {
       context = await this.getContext(request.sourceType);
@@ -90,24 +112,7 @@ export class Transformer {
 
       this.output.append(`Created context cache id: ${this.contextCacheId}`);
     }
-
-    let modelParams: ModelParams = { 
-      model: request.modelId,
-      generationConfig: this.generationConfig
-    };
-
-    // Include system instruction only if we're using repository and not using the context cache
-    if (request.sourceType === SourceType.Repository && 
-        (!request.useContextCache || !this.contextCacheId )) {
-      modelParams = { 
-        ...modelParams, 
-        systemInstruction: {
-          role: 'system',
-          parts: [{"text": this.options.systemPrompt}]
-        }
-      }
-    } 
-    
+   
     if (request.sourceType === SourceType.Repository && this.contextCacheId) {
       // Build the cached request
       this.output.appendLine(`Using cache id: ${this.contextCacheId}`);
@@ -128,9 +133,19 @@ export class Transformer {
       const prompt = `${context}\nUser request: ${request.prompt}`;
 
       const generateContentRequest = {
+        systemInstruction: {
+          role: 'system',
+          parts: [{"text": this.options.systemPrompt}]
+        },
         contents: [
           {role: 'user', parts: [{text: prompt}]}
-        ],
+        ],        
+      };
+
+      const modelParams: ModelParams = { 
+        model: request.modelId,
+        generationConfig: this.generationConfig,
+        safetySettings: this.safetySettings,
       };
 
       this.output.append('Complete Prompt:\n' + prompt);
@@ -208,10 +223,11 @@ export class Transformer {
   private async invokeModel(modelParams: ModelParams, generateContentRequest: GenerateContentRequest): Promise<string> {
     const generativeModel = this.vertex.getGenerativeModel(modelParams, { timeout: 120000 });
 
-
-    const filename = vscode.workspace.workspaceFolders![0].uri.fsPath + '/output.json';
-    const uri = vscode.Uri.file(filename);
-    await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(generateContentRequest)));
+    if (this.options.debugEnabled) {
+      const filename = vscode.workspace.workspaceFolders![0].uri.fsPath + '/output.json';
+      const uri = vscode.Uri.file(filename);
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(generateContentRequest)));
+    }
 
     var result;
     
@@ -284,26 +300,14 @@ export class Transformer {
 
       console.log('Context cache created:', response.data);
       
+      // TODO: we need to restrict the model once you've cached
       return response.data?.name;
 
     } catch (error: any) {
       this.output.appendLine('[ERROR] An error occurred while creating the cache');
       this.output.appendLine(error);
       throw new Error(error.message);
-    }
-
-    /* Expected sample response:
-    {
-      "name": "projects/PROJECT_NUMBER/locations/us-central1/cachedContents/CACHE_ID",
-      "model": "projects/PROJECT_ID/locations/us-central1/publishers/google/models/gemini-1.5-pro-001",
-      "createTime": "2024-06-04T01:11:50.808236Z",
-      "updateTime": "2024-06-04T01:11:50.808236Z",
-      "expireTime": "2024-06-04T02:11:50.794542Z"
-    }
-    */
-
-    //return "projects/PROJECT_NUMBER/locations/us-central1/cachedContents/CACHE_ID";
-    
+    }   
   }
 
   /** Since this isn't provided by the SDK yet, make a direct HTTP call. */
