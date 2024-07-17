@@ -60,7 +60,7 @@ export class Transformer {
     });
 
     this.generationConfig = {
-      'maxOutputTokens': 8192,
+      'maxOutputTokens': 18192,
       'temperature': this.options.temperature,
       'topP': this.options.topP,
       // 'response_mime_type': 'application/json',
@@ -247,7 +247,7 @@ export class Transformer {
     }
     catch (error: any) {
       this.output.appendLine('[ERROR] An error occurred while generating the response');
-      this.output.appendLine(error);
+      this.logHttpError(error);
       throw new Error(error.message);
     }
 
@@ -314,7 +314,8 @@ export class Transformer {
 
     } catch (error: any) {
       this.output.appendLine('[ERROR] An error occurred while creating the cache');
-      this.output.appendLine(error);
+      this.logHttpError(error);
+
       throw new Error(error.message);
     }   
   }
@@ -346,7 +347,7 @@ export class Transformer {
       return text;
     } catch (error: any) {
       this.output.appendLine('[ERROR] An error occurred while generating the response from cache');
-      this.output.appendLine(error);
+      this.logHttpError(error);
       throw new Error(error.message);
     }
   }
@@ -364,5 +365,21 @@ export class Transformer {
     const token = await client.getAccessToken();
     
     return token;
+  }
+
+  private logHttpError(error: any) {
+    if (axios.isAxiosError(error) && error.response) {
+      // This is an Axios error with a response
+      this.output.appendLine('Full error response:');
+      this.output.appendLine(JSON.stringify(error.response.data, null, 2));
+      this.output.appendLine(`Status: ${error.response.status}`);
+      this.output.appendLine(`Status Text: ${error.response.statusText}`);
+      this.output.appendLine('Headers:');
+      this.output.appendLine(JSON.stringify(error.response.headers, null, 2));
+    } else {
+      // This is not an Axios error or doesn't have a response
+      this.output.appendLine('Error details:');
+      this.output.appendLine(error.toString());
+    }
   }
 }
