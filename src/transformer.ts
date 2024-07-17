@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import {GenerateContentRequest, GenerationConfig, HarmBlockThreshold, HarmCategory, ModelParams, SafetySetting, VertexAI} from "@google-cloud/vertexai";
+import {GenerateContentRequest, GenerateContentResponse, GenerationConfig, HarmBlockThreshold, HarmCategory, ModelParams, SafetySetting, VertexAI} from "@google-cloud/vertexai";
 import { GoogleAuth } from 'google-auth-library';
 import axios from 'axios';
 
@@ -139,18 +139,14 @@ export class Transformer {
         },
         contents: [
           {role: 'user', parts: [{text: prompt}]}
-        ],        
-      };
-
-      const modelParams: ModelParams = { 
-        model: request.modelId,
+        ],
         generationConfig: this.generationConfig,
         safetySettings: this.safetySettings,
       };
 
       this.output.append('Complete Prompt:\n' + prompt);
 
-      return await this.invokeModel(modelParams, generateContentRequest);
+      return await this.invokeModel({model: request.modelId}, generateContentRequest);
     }
   }
 
@@ -221,18 +217,33 @@ export class Transformer {
 
   /** Wraps invocation of the VertexAI and handling response */
   private async invokeModel(modelParams: ModelParams, generateContentRequest: GenerateContentRequest): Promise<string> {
-    const generativeModel = this.vertex.getGenerativeModel(modelParams, { timeout: 120000 });
+    // const generativeModel = this.vertex.getGenerativeModel(modelParams, { timeout: 120000 });
 
     if (this.options.debugEnabled) {
       const filename = vscode.workspace.workspaceFolders![0].uri.fsPath + '/output.json';
       const uri = vscode.Uri.file(filename);
       await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(generateContentRequest)));
     }
+  
+    let response : GenerateContentResponse;
 
-    var result;
-    
     try {
-      result = await generativeModel.generateContent(generateContentRequest);
+      // result = await generativeModel.generateContent(generateContentRequest);
+      const token = await this.getToken();
+
+      const config = {
+        method: 'post',
+        url: `https://${this.options.locationId}-aiplatform.googleapis.com/v1/projects/${this.options.projectId}/locations/${this.options.locationId}/publishers/google/models/${modelParams.model}:generateContent`,
+        headers: {
+          'Authorization': `Bearer ${token.token}`,
+          'Content-Type': 'application/json'
+        },
+        data: generateContentRequest
+      };
+
+      // Make the API request
+      const axiosResponse = await axios(config);
+      response = axiosResponse.data;
     }
     catch (error: any) {
       this.output.appendLine('[ERROR] An error occurred while generating the response');
@@ -240,10 +251,8 @@ export class Transformer {
       throw new Error(error.message);
     }
 
-    if (!result.response)
+    if (!response)
       throw new Error("No response from Vertex AI")
-    
-    const response = result.response;
     
     vscode.window.showInformationMessage(`Used ${response.usageMetadata?.totalTokenCount} tokens`);
 
