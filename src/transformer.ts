@@ -60,7 +60,7 @@ export class Transformer {
     });
 
     this.generationConfig = {
-      'maxOutputTokens': 18192,
+      'maxOutputTokens': 8192,
       'temperature': this.options.temperature,
       'topP': this.options.topP,
       // 'response_mime_type': 'application/json',
