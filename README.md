@@ -2,11 +2,24 @@
 
 Very simple demonstration of using Gemini to transform either the current open tab or use the entire repository as context.  
 
+## Build
+
+	```bash
+	npm run package
+	```
+
+	Given the following warning, just choose Y to continue:
+
+	```bash
+	 WARNING  LICENSE.md, LICENSE.txt or LICENSE not found
+	Do you want to continue? [y/N] Y
+	```
+
 ## Install
 	```bash
-	code --install-extension vscode-transformer-0.1.4.vsix
+	code --install-extension vscode-transformer-0.1.6.vsix
 	
-	cd ~/.vscode/extensions/jjdelorme.vscode-transform-0.1.4/
+	cd ~/.vscode/extensions/jjdelorme.vscode-transform-0.1.6/
 	npm install
 	```
 

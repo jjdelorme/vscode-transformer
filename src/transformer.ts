@@ -13,8 +13,10 @@ export interface TransformerOptions {
   temperature: number;
   // Array of file types to include
   include?: string[];
+  includeLastResponse?: boolean;
   topP?: number;
   debugEnabled?: boolean;
+  maxOutputTokens?: number;
 }
 
 export enum SourceType {
@@ -60,7 +62,7 @@ export class Transformer {
     });
 
     this.generationConfig = {
-      'maxOutputTokens': 8192,
+      'maxOutputTokens': this.options.maxOutputTokens,
       'temperature': this.options.temperature,
       'topP': this.options.topP,
       // 'response_mime_type': 'application/json',
@@ -256,14 +258,22 @@ export class Transformer {
     
     vscode.window.showInformationMessage(`Used ${response.usageMetadata?.totalTokenCount} tokens`);
 
+    let message = undefined;
+
     if (response.candidates![0].finishReason != 'STOP') {
       vscode.window.showErrorMessage("Finished with reason: " + response.candidates![0].finishReason);
 
-      const message = response.candidates ? response.candidates[0].finishMessage : 'No details provided';
-      throw new Error(message);
+      message = response.candidates ? response.candidates[0].finishMessage : 'No details provided';
+      this.output.appendLine('Finish message: ' + message);
+      // throw new Error(message);
     }
 
     const text = response.candidates![0].content?.parts![0].text ?? '';
+    
+    // Only throw an error if there was no text and there was an error message
+    if (text === '' && message)
+      throw new Error(message);
+
     return text;
   }
   

@@ -135,7 +135,8 @@ class PromptViewProvider implements vscode.WebviewViewProvider {
 			include: config.get<string[]>('include'),
 			temperature: config.get<number>('temperature'),
 			topP: config.get<number>('topP'),
-			debugEnabled: config.get<boolean>('debugEnabled'),			
+			debugEnabled: config.get<boolean>('debugEnabled'),
+			maxOutputTokens: config.get<number>('maxOutputTokens'),
 		 };
 
 		 if (!options.projectId) throw new Error("Missing project id");
